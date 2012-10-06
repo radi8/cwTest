@@ -244,6 +244,23 @@ Morse::Morse(QWidget *parent) :
   connect(this,SIGNAL(doWork(QString, unsigned long)),sendEl,SLOT(doElements(QString, unsigned long)));
   sendEl->moveToThread(cwThread);
   cwThread->start();
+  m_pullTimer = new QTimer(this);
+  initializeAudio();
+  cwToneOff();
+
+  connect(sendEl, SIGNAL(cwToneOn()),this, SLOT(cwToneOn()));
+  connect(sendEl, SIGNAL(cwToneOff()),this, SLOT(cwToneOff()));
+}
+
+Morse::~Morse()
+{
+  delete ui;
+}
+
+void Morse::initializeAudio()
+{
+  m_buffer.resize(BufferSize);
+  connect(m_pullTimer, SIGNAL(timeout()), SLOT(pullTimerExpired()));
 
   m_format.setSampleRate(DataFrequencyHz);
   m_format.setChannelCount(1);
@@ -262,21 +279,12 @@ Morse::Morse(QWidget *parent) :
     m_audioOutput = new QAudioOutput(m_device.defaultOutputDevice(), m_format, this);
 
 //    connect(m_audioOutput, SIGNAL(notify()), SLOT(notified())); //todo See if I need this
+    connect(m_audioOutput, SIGNAL(stateChanged(QAudio::State)), SLOT(stateChanged(QAudio::State)));
 
     m_generator->start();
-    m_audioOutput->start(m_generator);
-//    m_output = m_audioOutput->start();
-//    m_generator->stop();
-//    m_audioOutput->setVolume(0.0);
-    cwToneOff();
-
-    connect(sendEl, SIGNAL(cwToneOn()),this, SLOT(cwToneOn()));
-    connect(sendEl, SIGNAL(cwToneOff()),this, SLOT(cwToneOff()));
-}
-
-Morse::~Morse()
-{
-  delete ui;
+//    m_audioOutput->start(m_generator);
+    m_output = m_audioOutput->start();
+    m_pullTimer->start(20);
 }
 
 void Morse::readSettings(QSettings *settings)
@@ -379,4 +387,19 @@ int Morse::sendBuffer(int editBox)
       emit doWork(buff, elTime);
       return 0;
   }
+}
+
+void Morse::pullTimerExpired()
+{
+  if (m_audioOutput && m_audioOutput->state() != QAudio::StoppedState) {
+          int chunks = m_audioOutput->bytesFree()/m_audioOutput->periodSize();
+          while (chunks) {
+             const qint64 len = m_generator->read(m_buffer.data(), m_audioOutput->periodSize());
+             if (len)
+                 m_output->write(m_buffer.data(), len);
+             if (len != m_audioOutput->periodSize())
+                 break;
+             --chunks;
+          }
+      }
 }

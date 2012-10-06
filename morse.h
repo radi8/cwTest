@@ -4,7 +4,7 @@
 #include <QDialog>
 #include <QSettings>
 #include <QAudioFormat>
-//#include <QBasicTimer>
+#include <QTimer>
 //#include <QEvent>
 
 #include "generator.h"
@@ -58,19 +58,23 @@ public:
 private slots:
   void cwToneOn();
   void cwToneOff();
+  void pullTimerExpired();
 
 private:
   Ui::Morse *ui;
 
 // Private Functions
+  void initializeAudio();
   int sendBuffer(int editBox);
 
-  QAudioFormat     m_format;
+  QTimer*          m_pullTimer;
   QAudioDeviceInfo m_device;
   Generator*       m_generator;
   QAudioOutput*    m_audioOutput;
   QIODevice*       m_output; // not owned
+  QAudioFormat     m_format;
 
+  QByteArray       m_buffer;
 signals:
   void doWork(QString, unsigned long);
 };
