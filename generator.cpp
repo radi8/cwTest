@@ -7,13 +7,16 @@
 
 
 Generator::Generator(const QAudioFormat &format,
-                     qint64 durationUs,
+//                     qint64 durationUs,
+                     int cyclesOfTone,
                      int frequency,
                      QObject *parent)
     :   QIODevice(parent)
     ,   m_pos(0)
 {
-    generateData(format, durationUs, frequency);
+    cyclesOfTone = 3;
+//    generateData(format, durationUs, frequency);
+    generateData(format, cyclesOfTone, frequency);
 }
 
 Generator::~Generator()
@@ -32,13 +35,23 @@ void Generator::stop()
     close();
 }
 
-void Generator::generateData(const QAudioFormat &format, qint64 durationUs, int frequency)
+void Generator::generateData(const QAudioFormat &format, int cyclesOfTone, int frequency)
 {
     const int channelBytes = format.sampleSize() / 8;
     const int sampleBytes = format.channelCount() * channelBytes;
+    qint64 durationUs;
+
+    frequency = 600;
+    durationUs = (1.0f/frequency)*cyclesOfTone * 1000000;
+//    durationUs = (qint64)((1.0f/frequency)*3000000); //Build a buffer containing 3 cycles of tone
 
     qint64 length = (format.sampleRate() * format.channelCount() * (format.sampleSize() / 8))
-                        * durationUs / 100000;
+                        * durationUs / 1000000;
+    length &= 0x7ffffffe; //length must be divisible by 2
+
+    qDebug()<<"Length = "<<length<<", format.sampleRate() = "<<format.sampleRate()
+           <<", format.sampleSize() = "<<format.sampleSize()<<", durationUs = "<<durationUs;
+    qDebug()<<"frequency = "<<frequency<<"format.channelCount()"<<format.channelCount();
 
     Q_ASSERT(length % sampleBytes == 0);
     Q_UNUSED(sampleBytes); // suppress warning in release builds
@@ -46,7 +59,6 @@ void Generator::generateData(const QAudioFormat &format, qint64 durationUs, int 
     m_buffer.resize(length);
     unsigned char *ptr = reinterpret_cast<unsigned char *>(m_buffer.data());
     int sampleIndex = 0;
-
     while (length) {
         const qreal x = qSin(2 * M_PI * frequency * qreal(sampleIndex % format.sampleRate()) / format.sampleRate());
         for (int i=0; i<format.channelCount(); ++i) {
@@ -75,6 +87,7 @@ void Generator::generateData(const QAudioFormat &format, qint64 durationUs, int 
         }
         ++sampleIndex;
     }
+    qDebug()<<"sampleIndex = "<<sampleIndex;
 }
 
 qint64 Generator::readData(char *data, qint64 len)
@@ -99,5 +112,48 @@ qint64 Generator::writeData(const char *data, qint64 len)
 
 qint64 Generator::bytesAvailable() const
 {
-    return m_buffer.size() + QIODevice::bytesAvailable();
+  return m_buffer.size() + QIODevice::bytesAvailable();
+}
+
+void Generator::calcToneDuration(int mSec)
+{
+  samples = (DataFrequencyHz * mSec) / 1000;
+  samples &= 0x7ffffffe;
+//  m_pos = m_buffer;
+}
+
+void Generator::setToneFreq(int freq)
+{
+//  if (buffer)
+//          delete[] buffer;
+//  freq = frequency;
+
+  const int upper_freq = 1200;
+  const int full_waves = 3;
+
+  // Arbitrary upper frequency
+  if (freq > upper_freq)
+          freq = upper_freq;
+
+//  generateData(, full_waves, freq); //todo work out how to send to generateData
+
+  // We create a buffer with some full waves of freq,
+  // therefore we need room for this many samples:
+//  int buflen = DataFrequencyHz * full_waves / freq; //DataFrequencyHz = sampleRate
+
+//  MYVERBOSE("buf needs to hold %d samples", buflen);
+
+//  m_buffer.resize(buflen);
+
+  // Now fill this buffer with the sine wave
+//  QByteArray t = m_buffer;
+//  for (int i = 0; i < buflen; i++) {
+//          int value = 32767.0 * sin(M_PI * 2 * i * freq / DataFrequencyHz);
+//          MYVERBOSE("%4d: %6d, pos %d", i, value, t - buffer);
+//          t++ = value;
+//  }
+
+//  sendpos = m_buffer;
+//  end = m_buffer.size();
+//  samples = 0;
 }

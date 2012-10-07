@@ -74,6 +74,7 @@ void Send_Elements::sendCW(int el_type, unsigned long elTime)
 {
   switch (el_type) {
     case _ditsp: {
+
         emit cwToneOn();
         qDebug()<<Q_FUNC_INFO<<"Dit sent (emit cwToneOn)";
         usleep(elTime);
@@ -277,6 +278,7 @@ void Morse::initializeAudio()
     m_generator = new Generator(m_format, DurationSeconds*1000000, toneFreq, this); //DurationSeconds*1000000, ToneFrequencyHz
 
     m_audioOutput = new QAudioOutput(m_device.defaultOutputDevice(), m_format, this);
+    m_audioOutput->setVolume(0.75);
 
 //    connect(m_audioOutput, SIGNAL(notify()), SLOT(notified())); //todo See if I need this
     connect(m_audioOutput, SIGNAL(stateChanged(QAudio::State)), SLOT(stateChanged(QAudio::State)));
@@ -285,6 +287,7 @@ void Morse::initializeAudio()
 //    m_audioOutput->start(m_generator);
     m_output = m_audioOutput->start();
     m_pullTimer->start(20);
+    m_generator->setToneFreq(1000);
 }
 
 void Morse::readSettings(QSettings *settings)
