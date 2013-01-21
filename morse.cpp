@@ -31,6 +31,7 @@
 #include <cctype>
 #include <QThread>
 #include <QSound>
+#include <math.h>
 
 Send_Elements::Send_Elements(QObject *parent) :
   QObject(parent)
@@ -46,7 +47,7 @@ void Send_Elements::doElements(QString buff, unsigned long elTime) //Slot, conne
   charFrame ltr;
 
   for (int x = 0; x<buff.length();x++) {
-    currentLetter = buff[x].toAscii();
+      currentLetter = buff[x].toLatin1();
     ltr = ascii2cw(currentLetter);
     if (x) { // Don't send a leading letter or word space first time through.
         if (ltr.elementCount == 7) {
@@ -340,20 +341,35 @@ void Morse::keyPressEvent(QKeyEvent *event)
 
 void Morse::cwToneOn()
 {
-  qDebug()<<"At cwToneOn slot, Turning tone on";
-//  m_generator->start();
-//  qDebug()<<"The volume value is"<< m_audioOutput->volume();
-//  m_audioOutput->start(m_generator);
-  m_audioOutput->setVolume(0.75);
+  float x;
+
+//  qDebug()<<"At cwToneOn slot, Turning tone on";
+//  for(x = 0; x <= 0.9; x += 0.1) {
+//      m_audioOutput->setVolume(x*0.75);
+//  }
+//  for(x; x <= 1; x += 0.05) {
+//      m_audioOutput->setVolume(x*0.75);
+//  }
+//  m_audioOutput->setVolume(0.75);
+  m_audioOutput->resume();
+
 }
 
 void Morse::cwToneOff()
 {
-  qDebug()<<"At cwToneOff slot, Turning tone off";
-//  m_generator->stop();
-//  m_audioOutput->stop();
-  m_audioOutput->setVolume(0.0);
+  float x;
 
+//  qDebug()<<"At cwToneOff slot, Turning tone off";
+//  for(x = 1; x >= 0.9; x -= 0.05) {
+//    m_audioOutput->setVolume(x*0.75);
+//  }
+//  for(x; x >= 0; x -= 0.1) {
+//      m_audioOutput->setVolume(x*0.75);
+//  }
+  m_audioOutput->suspend();
+    m_output->reset();
+//    m_audioOutput->setVolume(0);
+    qDebug()<<"Size of buffer = "<< m_audioOutput->bufferSize();
 }
 
 int Morse::sendBuffer(int editBox)
@@ -400,6 +416,7 @@ void Morse::pullTimerExpired()
              const qint64 len = m_generator->read(m_buffer.data(), m_audioOutput->periodSize());
              if (len)
                  m_output->write(m_buffer.data(), len);
+             qDebug()<<"Data pointer posn = "<< m_output->pos();
              if (len != m_audioOutput->periodSize())
                  break;
              --chunks;
