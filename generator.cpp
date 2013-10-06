@@ -49,9 +49,12 @@ void Generator::generateData(const QAudioFormat &format, int cyclesOfTone, int f
                         * durationUs / 1000000;
     length &= 0x7ffffffe; //length must be divisible by 2
 
-    qDebug()<<"Length = "<<length<<", format.sampleRate() = "<<format.sampleRate()
-           <<", format.sampleSize() = "<<format.sampleSize()<<", durationUs = "<<durationUs;
-    qDebug()<<"frequency = "<<frequency<<"format.channelCount()"<<format.channelCount();
+    qDebug()<<"Length = "<<length
+            <<", format.sampleRate() = "<<format.sampleRate()
+            <<", format.sampleSize() = "<<format.sampleSize()
+            <<", durationUs = "<<durationUs;
+    qDebug()<<"frequency = "<<frequency
+            <<", format.channelCount()"<<format.channelCount();
 
     Q_ASSERT(length % sampleBytes == 0);
     Q_UNUSED(sampleBytes); // suppress warning in release builds
@@ -84,11 +87,21 @@ void Generator::generateData(const QAudioFormat &format, int cyclesOfTone, int f
 
             ptr += channelBytes;
             length -= channelBytes;
-        }
+        } //end for loop
         ++sampleIndex;
-    }
-    qDebug()<<"sampleIndex = "<<sampleIndex;
+//        qDebug()<<"sampleIndex = "<<sampleIndex
+//                <<", m_buffer length = "<<m_buffer.length()
+//                <<", ptr = "<<*ptr
+//                <<", m_pos = "<<m_pos;
+    } //end while (length)
+    qDebug()<<"sampleIndex = "<<sampleIndex
+            <<", m_buffer length = "<<m_buffer.length()
+            <<", ptr = "<<*ptr
+            <<", m_pos = "<<m_pos;
 }
+
+// qint64 Generator::readData(char *data, qint64 len). An overlay of qint64 QIODevice::read(char * data, qint64 maxSize)
+// Called from "Morse::pullTimerExpired()" ... m_generator->read(m_buffer.data(), m_audioOutput->periodSize())
 
 qint64 Generator::readData(char *data, qint64 len)
 {
@@ -98,6 +111,9 @@ qint64 Generator::readData(char *data, qint64 len)
         memcpy(data + total, m_buffer.constData() + m_pos, chunk);
         m_pos = (m_pos + chunk) % m_buffer.size();
         total += chunk;
+//        qDebug()<<"m_pos = "<<m_pos
+//                <<", chunk = "<<chunk
+//                <<", len = "<<len;
     }
     return total;
 }

@@ -1,0 +1,258 @@
+typedef struct cw_tone_struct {
+	/* Frequency of a tone. */
+	int frequency;
+
+	/* Duration of a tone, in microseconds. */
+	int usecs;
+
+	/* Duration of a tone, in samples.
+	   This is a derived value, a function of usecs and sample rate. */
+
+	/* TODO: come up with thought-out, consistent type system for
+	   samples and usecs. The type system should take into
+	   consideration very long duration of tones in QRSS. */
+	int64_t n_samples;
+
+	/* We need two indices to gen->buffer, indicating beginning and end
+	   of a subarea in the buffer.
+	   The subarea is not the same as gen->buffer for variety of reasons:
+	    - buffer length is almost always smaller than length of a dash,
+	      a dot, or inter-element space that we want to produce;
+	    - moreover, length of a dash/dot/space is almost never an exact
+	      multiple of length of a buffer;
+            - as a result, a sound representing a dash/dot/space may start
+	      and end anywhere between beginning and end of the buffer;
+
+	   A workable solution is have a subarea of the buffer, a window,
+	   into which we will write a series of fragments of calculated sound.
+
+	   The subarea won't wrap around boundaries of the buffer. "stop"
+	   will be no larger than "gen->buffer_n_samples - 1", and it will
+	   never be smaller than "stop".
+
+	   "start" and "stop" mark beginning and end of the subarea.
+	   Very often (in the middle of the sound), "start" will be zero,
+	   and "stop" will be "gen->buffer_n_samples - 1".
+
+	   Sine wave (sometimes with amplitude = 0) will be calculated for
+	   cells ranging from cell "start" to cell "stop", inclusive. */
+	int sub_start;
+	int sub_stop;
+
+	/* a tone can start and/or end abruptly (which may result in
+	   audible clicks), or its beginning and/or end can have form
+	   of slopes (ramps), where amplitude increases/decreases less
+	   abruptly than if there were no slopes;
+
+	   using slopes reduces audible clicks at the beginning/end of
+	   tone, and can be used to shape spectrum of a tone;
+
+	   AFAIK most desired shape of a slope looks like sine wave;
+	   most simple one is just a linear slope;
+
+	   slope area should be integral part of a tone, i.e. it shouldn't
+	   make the tone longer than usecs/n_samples;
+
+	   a tone with rising and falling slope should have this length
+	   (in samples):
+	   slope_n_samples   +   (n_samples - 2 * slope_n_samples)   +   slope_n_samples
+
+	   libcw allows following slope area scenarios (modes):
+	   1. no slopes: tone shouldn't have any slope areas (i.e. tone
+	      with constant amplitude);
+	   1.a. a special case of this mode is silent tone - amplitude
+	        of a tone is zero for whole duration of the tone;
+	   2. tone has nothing more than a single slope area (rising or
+	      falling); there is no area with constant amplitude;
+	   3. a regular tone, with area of rising slope, then area with
+	   constant amplitude, and then falling slope;
+
+	   currently, if a tone has both slopes (rising and falling), both
+	   slope areas have to have the same length; */
+	int slope_iterator;     /* counter of samples in slope area */
+	int slope_mode;         /* mode/scenario of slope */
+	int slope_n_samples;    /* length of slope area */
+} cw_tone_t;
+
+/*****************************************************************************/
+
+/**
+   \brief Call external callback function for keying
+
+   Control function that calls any requested keying callback only when there
+   is a change of keying state.  This function filters successive key-down
+   or key-up actions into a single action.
+
+   \param requested_key_state - current key state to be stored
+*/
+void cw_key_straight_key_generate_internal(cw_gen_t *gen, int requested_key_state)
+{
+	static int current_key_state = CW_KEY_STATE_OPEN;  /* Maintained key control state */
+
+	if (current_key_state != requested_key_state) {
+		cw_debug (CW_DEBUG_KEYING, "straight key: keying state %d->%d", current_key_state, requested_key_state);
+
+		/* Set the new keying state, and call any requested callback. */
+		current_key_state = requested_key_state;
+		if (cw_kk_key_callback) {
+			(*cw_kk_key_callback)(cw_kk_key_callback_arg, current_key_state);
+		}
+
+		if (current_key_state == CW_KEY_STATE_CLOSED) {
+			cw_tone_t tone;
+			tone.usecs = gen->slope_usecs;
+			tone.frequency = gen->frequency;
+			tone.slope_mode = CW_SLOPE_MODE_RISING_SLOPE;
+			cw_tone_queue_enqueue_internal(gen->tq, &tone);
+
+			tone.slope_mode = CW_SLOPE_MODE_NO_SLOPES;
+			tone.usecs = CW_AUDIO_FOREVER_USECS;
+			tone.frequency = gen->frequency;
+			cw_tone_queue_enqueue_internal(gen->tq, &tone);
+
+			cw_dev_debug ("len = %d", cw_tone_queue_length_internal(gen->tq));
+		} else {
+			cw_tone_t tone;
+			tone.usecs = gen->slope_usecs;
+			tone.frequency = gen->frequency;
+			tone.slope_mode = CW_SLOPE_MODE_FALLING_SLOPE;
+			cw_tone_queue_enqueue_internal(gen->tq, &tone);
+
+			if (gen->audio_system == CW_AUDIO_CONSOLE) {
+				/* Play just a bit of silence, just to switch
+				   buzzer from playing a sound to being silent. */
+				tone.usecs = CW_AUDIO_QUANTUM_USECS;
+				tone.frequency = 0;
+				tone.slope_mode = CW_SLOPE_MODE_NO_SLOPES;
+				cw_tone_queue_enqueue_internal(gen->tq, &tone);
+			} else {
+				/* On some occasions, on some platforms, some
+				   sound systems may need to constantly play
+				   "silent" tone. These four lines of code are
+				   just for them.
+
+				   It would be better to avoid queueing silent
+				   "forever" tone because this increases CPU
+				   usage. It would be better to simply not to
+				   queue any new tones after "falling slope"
+				   tone. Silence after the last falling slope
+				   would simply last on itself until there is
+				   new tone on queue to play. */
+				tone.usecs = CW_AUDIO_FOREVER_USECS;
+				tone.frequency = 0;
+				tone.slope_mode = CW_SLOPE_MODE_NO_SLOPES;
+				cw_tone_queue_enqueue_internal(gen->tq, &tone);
+			}
+		}
+	}
+
+	return;
+}
+
+/*****************************************************************************/
+
+/**
+   \brief Calculate value of a sample of sine wave
+
+   \param gen - generator used to generate a sine wave
+
+   \return value of a sample of sine wave, a non-negative number
+*/
+int cw_generator_calculate_amplitude_internal(cw_gen_t *gen, cw_tone_t *tone)
+{
+	int amplitude = 0;
+#if 0
+	/* blunt algorithm for calculating amplitude;
+	   for debug purposes only */
+	if (tone->frequency) {
+		amplitude = gen->volume_abs;
+	} else {
+		amplitude = 0;
+	}
+
+	return amplitude;
+#else
+
+	if (tone->frequency > 0) {
+		if (tone->slope_mode == CW_SLOPE_MODE_RISING_SLOPE) {
+			if (tone->slope_iterator < tone->slope_n_samples) {
+				int i = tone->slope_iterator;
+				amplitude = 1.0 * gen->volume_abs * i / tone->slope_n_samples;
+				//cw_dev_debug ("1: slope: %d, amp: %d", tone->slope_iterator, amplitude);
+			} else {
+				amplitude = gen->volume_abs;
+				assert (amplitude >= 0);
+			}
+		} else if (tone->slope_mode == CW_SLOPE_MODE_FALLING_SLOPE) {
+			if (tone->slope_iterator > tone->n_samples - tone->slope_n_samples + 1) {
+				int i = tone->n_samples - tone->slope_iterator - 1;
+				assert (i >= 0);
+				amplitude = 1.0 * gen->volume_abs * i / tone->slope_n_samples;
+				//cw_dev_debug ("2: slope: %d, amp: %d", tone->slope_iterator, amplitude);
+				assert (amplitude >= 0);
+			} else {
+				amplitude = gen->volume_abs;
+				assert (amplitude >= 0);
+			}
+		} else if (tone->slope_mode == CW_SLOPE_MODE_NO_SLOPES) {
+			amplitude = gen->volume_abs;
+			assert (amplitude >= 0);
+		} else { // tone->slope_mode == CW_SLOPE_MODE_STANDARD_SLOPES
+			/* standard algorithm for generating slopes:
+			   single, finite tone with:
+			    - rising slope at the beginning,
+			    - a period of wave with constant amplitude,
+			    - falling slope at the end. */
+			if (tone->slope_iterator >= 0 && tone->slope_iterator < tone->slope_n_samples) {
+				/* beginning of tone, produce rising slope */
+				int i = tone->slope_iterator;
+				amplitude = 1.0 * gen->volume_abs * i / tone->slope_n_samples;
+				//cw_dev_debug ("rising slope: i = %d, amp = %d", tone->slope_iterator, amplitude);
+				assert (amplitude >= 0);
+			} else if (tone->slope_iterator >= tone->slope_n_samples && tone->slope_iterator < tone->n_samples - tone->slope_n_samples) {
+				/* middle of tone, constant amplitude */
+				amplitude = gen->volume_abs;
+				assert (amplitude >= 0);
+			} else if (tone->slope_iterator >= tone->n_samples - tone->slope_n_samples) {
+				/* falling slope */
+				int i = tone->n_samples - tone->slope_iterator - 1;
+				assert (i >= 0);
+				amplitude = 1.0 * gen->volume_abs * i / tone->slope_n_samples;
+				//cw_dev_debug ("falling slope: i = %d, amp = %d", tone->slope_iterator, amplitude);
+				assert (amplitude >= 0);
+			} else {
+				;
+				assert (amplitude >= 0);
+			}
+		}
+	} else {
+		amplitude = 0;
+	}
+
+	assert (amplitude >= 0); /* will fail if calculations above are modified */
+
+#endif
+
+#if 0 /* no longer necessary since calculation of amplitude,
+	 implemented above guarantees that amplitude won't be
+	 less than zero, and amplitude slightly larger than
+	 volume is not an issue */
+
+	/* because CW_AUDIO_VOLUME_RANGE may not be exact multiple
+	   of gen->slope, amplitude may be sometimes out
+	   of range; this may produce audible clicks;
+	   remove values out of range */
+	if (amplitude > CW_AUDIO_VOLUME_RANGE) {
+		amplitude = CW_AUDIO_VOLUME_RANGE;
+	} else if (amplitude < 0) {
+		amplitude = 0;
+	} else {
+		;
+	}
+#endif
+
+	return amplitude;
+}
+
+/*****************************************************************************/
+

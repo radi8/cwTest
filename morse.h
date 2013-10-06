@@ -63,18 +63,17 @@ private slots:
 private:
   Ui::Morse *ui;
 
-// Private Functions
-  void initializeAudio();
-  int sendBuffer(int editBox);
-
+  bool keyState;
   QTimer*          m_pullTimer;
   QAudioDeviceInfo m_device;
   Generator*       m_generator;
   QAudioOutput*    m_audioOutput;
   QIODevice*       m_output; // not owned
   QAudioFormat     m_format;
-
   QByteArray       m_buffer;
+// Private Functions
+  void initializeAudio();
+  int sendBuffer(int editBox);
 signals:
   void doWork(QString, unsigned long);
 };

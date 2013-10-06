@@ -1,0 +1,68 @@
+QAudioOutput is a reasonably low-level interface class and can read from a custom QIODevice derived class (pull mode, good for streaming... limited real-time application) or you are provided with a QIODevice which you can write to once a notify interval has elapsed (push mode... more real-time).  A QIODevice "talks" in raw bytes... so either way you still need to take care of formatting your audio data correctly to match the stream parameters
+
+
+“pull mode”: the client provides a QIODevice by calling void start(QIODevice*).  No further intervention is required from the client in order to manage the data flow.
+    
+“push mode”: the QAudioInput object provides a QIODevice via QIODevice* start().  The client must then listen for the readyRead() signal, and then read() the new data.
+
+
+
+QAudioOutput can be used in two different modes, depending on which overload of start() is called:
+
+    "Pull mode": void QAudioOutput::start(QIODevice *)
+
+    In this mode, QAudioOutput will pull data from the supplied QIODevice without further intervention from the client. It is a good choice if the QIODevice being used is one which is provided by Qt (e.g. QFile, QAbstractSocket etc).
+
+    "Push mode": QIODevice* QAudioOutput::start()
+
+    In this mode, the QAudioOutput client must push mode to the audio device by calling QIODevice::write(). This will need to be done in a loop, something like:
+
+    qint64 dataRemaining = ... // assign correct value here
+    while (dataRemaining) {
+        qint64 bytesWritten = audioOutput->write(buffer, dataRemaining);
+        dataRemaining -= bytesWritten;
+        buffer += bytesWritten;
+        // Then wait for a short time
+    }
+
+    How the wait is implemented will depend on the context of your application - if audio is being written from a dedicated thread, it could simply sleep(). Alternatively, if audio is being written from the main thread, you will probably want the write to be triggered by a QTimer.
+
+/*!
+    Uses the \a device as the QIODevice to transfer data.
+    Passing a QIODevice allows the data to be transfered without any extra code.
+    All that is required is to open the QIODevice.
+
+    \sa QIODevice
+*/
+
+void QAudioOutput::start(QIODevice* device)
+{
+    /*
+    -If currently not StoppedState, stop.
+    -If previous start was push mode, delete internal QIODevice.
+    -open audio output.
+    -If ok, NoError and ActiveState, else OpenError and StoppedState
+    -emit stateChanged()
+    */
+    d->start(device);
+}
+
+/*!
+    Returns a pointer to the QIODevice being used to handle the data
+    transfer. This QIODevice can be used to write() audio data directly.
+
+    \sa QIODevice
+*/
+
+QIODevice* QAudioOutput::start()
+{
+    /*
+    -If currently not StoppedState, stop.
+    -If no internal QIODevice, create one.
+    -open audio output.
+    -If ok, NoError and IdleState, else OpenError and StoppedState
+    -emit stateChanged()
+    -return internal QIODevice
+    */
+    return d->start(0);
+}
