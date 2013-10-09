@@ -37,6 +37,72 @@ void Generator::stop()
 
 void Generator::generateData(const QAudioFormat &format, int cyclesOfTone, int frequency)
 {
+    //Find out how many bytes in each sample
+    const int channelBytes = format.sampleSize() / 8; //SampleSize = bits per sample
+    const int sampleBytes = format.channelCount() * channelBytes; //Num of bytes in each sample
+
+    qDebug()<<"channelBytes = "<<channelBytes;
+    qDebug()<<"sampleBytes = "<<sampleBytes;
+    qDebug()<<"format.sampleSize() = "<<format.sampleSize();
+    qDebug()<<"format.channelCount() = "<<format.channelCount();
+
+    /*To get an integer value for the samplesPerCycle it is necessary to tweak the frequency
+    slightly. as a cw sidetone this will be hardly noticeable*/
+    const int samplesPerCycle = format.sampleRate() * sampleBytes / frequency;
+    qreal freq = (qreal)format.sampleRate() * sampleBytes / samplesPerCycle; //Create the tweaked frequency
+    qreal omega = 2*M_PI*freq;
+    qint64 length = samplesPerCycle * cyclesOfTone;
+    length &= 0x7ffffffe; //length must be divisible by 2
+
+    qDebug()<<"samplesPerCycle = "<<samplesPerCycle<<", freq = "<<freq;
+    qDebug()<<"omega = "<<omega;
+    qDebug()<<"length = "<<length;
+    m_buffer.resize(length);
+    unsigned char *ptr = reinterpret_cast<unsigned char *>(m_buffer.data());
+
+    //Now fill the buffer with 3 sine waves starting & ending at 0 volts
+    int sampleIndex = 0;
+    while (length) {
+        const qreal x = qSin(omega * qreal(sampleIndex % format.sampleRate()) / format.sampleRate());
+        for (int i=0; i<format.channelCount(); ++i) {
+            if (format.sampleSize() == 8 && format.sampleType() == QAudioFormat::UnSignedInt) {
+                const quint8 value = static_cast<quint8>((1.0 + x) / 2 * 255);
+                *reinterpret_cast<quint8*>(ptr) = value;
+            } else if (format.sampleSize() == 8 && format.sampleType() == QAudioFormat::SignedInt) {
+                const qint8 value = static_cast<qint8>(x * 127);
+                *reinterpret_cast<quint8*>(ptr) = value;
+            } else if (format.sampleSize() == 16 && format.sampleType() == QAudioFormat::UnSignedInt) {
+                quint16 value = static_cast<quint16>((1.0 + x) / 2 * 65535);
+                if (format.byteOrder() == QAudioFormat::LittleEndian)
+                    qToLittleEndian<quint16>(value, ptr);
+                else
+                    qToBigEndian<quint16>(value, ptr);
+            } else if (format.sampleSize() == 16 && format.sampleType() == QAudioFormat::SignedInt) {
+                qint16 value = static_cast<qint16>(x * 32767);
+                if (format.byteOrder() == QAudioFormat::LittleEndian)
+                    qToLittleEndian<qint16>(value, ptr);
+                else
+                    qToBigEndian<qint16>(value, ptr);
+            }
+
+            ptr += channelBytes;
+            length -= channelBytes;
+        } //end for loop
+        ++sampleIndex;
+//        qDebug()<<"sampleIndex = "<<sampleIndex
+//                <<", m_buffer length = "<<m_buffer.length()
+//                <<", ptr = "<<*ptr
+//                <<", m_pos = "<<m_pos;
+    } //end while (length)
+    qDebug()<<"sampleIndex = "<<sampleIndex
+            <<", m_buffer length = "<<m_buffer.length()
+            <<", ptr = "<<*ptr
+            <<", m_pos = "<<m_pos;
+    qDebug()<<"Position = "<<reinterpret_cast<unsigned char *>(m_buffer.data()) - ptr;
+}
+
+void Generator::generateData1(const QAudioFormat &format, int cyclesOfTone, int frequency)
+{
     const int channelBytes = format.sampleSize() / 8;
     const int sampleBytes = format.channelCount() * channelBytes;
     qint64 durationUs;

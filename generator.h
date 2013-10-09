@@ -27,12 +27,11 @@ public:
 
 private:
     void generateData(const QAudioFormat &format, int cyclesOfTone, int frequency); //
-
+    void generateData1(const QAudioFormat &format, int cyclesOfTone, int frequency);
 private:
+    QByteArray  m_buffer; // Same as buffer (I think) todo
     qint64      m_pos;    // Current pos into the circular buffer (sendpos) todo
     int         freq;
-    QByteArray  m_buffer; // Same as buffer (I think) todo
-//    int         *sendpos; //!< \brief Current pos into the circular \ref buffer
     int         *end;     //!< \brief Last position in \ref buffer, for faster comparison
     int         samples;  //!< \brief Samples to play for desired sound duration
 };
