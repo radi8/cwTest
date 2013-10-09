@@ -21,9 +21,9 @@ cwTest::cwTest(QWidget *parent) :
 
 cwTest::~cwTest()
 {
-  QSettings settings("ZL2APV", "QtRadio");
+//  QSettings settings("ZL2APV", "QtRadio");
 
-  morse->writeSettings(&settings);
+//  morse->writeSettings(&settings);
   delete ui;
 }
 
@@ -50,11 +50,11 @@ void cwTest::on_pushButton_clicked()
 
 void cwTest::on_actionCwModule_triggered()
 {
-  QSettings settings("ZL2APV", "QtRadio");
+//  QSettings settings("ZL2APV", "QtRadio");
 
 //  qDebug() << __FUNCTION__ << "arrived at on_actionCwModule_triggered()";
   morse->setFixedSize(600, 471);
-  morse->readSettings(&settings);
+//  morse->readSettings(&settings);
   morse->show();
 }
 

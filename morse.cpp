@@ -252,11 +252,16 @@ Morse::Morse(QWidget *parent) :
 
   connect(sendEl, SIGNAL(cwToneOn()),this, SLOT(cwToneOn()));
   connect(sendEl, SIGNAL(cwToneOff()),this, SLOT(cwToneOff()));
+  QSettings settings("ZL2APV", "QtRadio");
+  readSettings(&settings);
 }
 
 Morse::~Morse()
 {
-  delete ui;
+    QSettings settings("ZL2APV", "QtRadio");
+    writeSettings(&settings);
+
+    delete ui;
 }
 
 void Morse::initializeAudio()
