@@ -12,7 +12,10 @@
 
 //enum {_ditsp, _dahsp, _elesp, _ltrsp, _wrdsp};
 
-
+namespace Ui
+{
+  class Morse;
+}
 class Morse : public QDialog
 {
   Q_OBJECT

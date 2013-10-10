@@ -2,9 +2,9 @@
 #define SENDELEMENTS_H
 
 #include <QObject>
-#include <QDialog>
-#include <QSettings>
-#include <QAudioFormat>
+//#include <QDialog>
+//#include <QSettings>
+//#include <QAudioFormat>
 #include <QTimer>
 
 //#include "generator.h"

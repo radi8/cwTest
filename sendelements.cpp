@@ -18,14 +18,14 @@
 
 #include "morse.h"
 #include "ui_morse.h"
-#include "generator.h"
+//#include "generator.h"
 #include "cwtest.h"
 
 #include <QDebug>
-#include <cctype>
+//#include <cctype>
 #include <QThread>
-#include <QSound>
-#include <math.h>
+//#include <QSound>
+//#include <math.h>
 
 #include "sendelements.h"
 
@@ -34,7 +34,7 @@ sendElements::sendElements(QObject *parent) :
 {
 }
 
-void Send_Elements::doElements(QString buff, unsigned long elTime) //Slot, connected to Morse::doWork
+void sendElements::doElements(QString buff, unsigned long elTime) //Slot, connected to Morse::doWork
 {
   char currentLetter;
   bool curElement; // false = dit, true = dah
@@ -66,7 +66,7 @@ void Send_Elements::doElements(QString buff, unsigned long elTime) //Slot, conne
     }
 }
 
-void Send_Elements::sendCW(int el_type, unsigned long elTime)
+void sendElements::sendCW(int el_type, unsigned long elTime)
 {
   switch (el_type) {
     case _ditsp: {
@@ -106,7 +106,7 @@ void Send_Elements::sendCW(int el_type, unsigned long elTime)
 }
 
 
-Send_Elements::charFrame Send_Elements::ascii2cw(char letter)
+sendElements::charFrame sendElements::ascii2cw(char letter)
 //Send_Elements::charFrame Send_Elements::charFrame::ascii2cw(char)
 //Morse::charFrame Morse::ascii2cw(char letter) // convert an ASCII code to a Morse value
 {

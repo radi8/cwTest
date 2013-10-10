@@ -1,8 +1,8 @@
 /* File:   Morse.cpp
- * Author: Graeme Jury, ZL2APV
- *
- * Created on 16 August 2012, 20:00
-/* Copyright (C)
+* Author: Graeme Jury, ZL2APV
+*
+* Created on 16 August 2012, 20:00
+* Copyright (C)
 * 2012 - Graeme Jury, ZL2APV
 * This program is free software; you can redistribute it and/or
 * modify it under the terms of the GNU General Public License
