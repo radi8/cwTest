@@ -5,39 +5,13 @@
 #include <QSettings>
 #include <QAudioFormat>
 #include <QTimer>
-//#include <QEvent>
+#include <QObject>
 
 #include "generator.h"
+#include "sendelements.h"
 
-enum {_ditsp, _dahsp, _elesp, _ltrsp, _wrdsp};
+//enum {_ditsp, _dahsp, _elesp, _ltrsp, _wrdsp};
 
-namespace Ui {
-  class Morse;
-}
-
-class Send_Elements : public QObject
-{
-  Q_OBJECT
-public:
-  explicit Send_Elements(QObject *parent = 0);
-  int test;
-
-public slots:
-  void doElements(QString, unsigned long);
-
-private:
-  struct charFrame {
-    unsigned char elementCount;
-    unsigned char letterCode;
-  };
-  // Private Functions
-    charFrame ascii2cw(char letter);
-    void sendCW(int el_type, unsigned long elTime);   
-
-signals:
-    void cwToneOn();
-    void cwToneOff();
-};
 
 class Morse : public QDialog
 {

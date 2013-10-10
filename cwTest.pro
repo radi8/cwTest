@@ -23,11 +23,13 @@ TEMPLATE = app
 SOURCES += main.cpp\
         cwtest.cpp \
     morse.cpp \
-    generator.cpp
+    generator.cpp \
+    sendelements.cpp
 
 HEADERS  += cwtest.h \
     morse.h \
-    generator.h
+    generator.h \
+    sendelements.h
 
 FORMS    += cwtest.ui \
     morse.ui
