@@ -12,10 +12,10 @@
 
 //enum {_ditsp, _dahsp, _elesp, _ltrsp, _wrdsp};
 
-namespace Ui
-{
+namespace Ui {
   class Morse;
 }
+
 class Morse : public QDialog
 {
   Q_OBJECT
@@ -47,7 +47,8 @@ private:
   QAudioOutput*    m_audioOutput;
   QIODevice*       m_output; // not owned
   QAudioFormat     m_format;
-  QByteArray       m_buffer;
+  QByteArray       xferBuf; //This buffer is used to transfer tone to audio stream
+  int              xferBufSize; //Needs to be bigger than periodSize + \0 terminator
 // Private Functions
   void initializeAudio();
   int sendBuffer(int editBox);

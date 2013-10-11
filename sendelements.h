@@ -2,15 +2,11 @@
 #define SENDELEMENTS_H
 
 #include <QObject>
-//#include <QDialog>
-//#include <QSettings>
-//#include <QAudioFormat>
 #include <QTimer>
 
-//#include "generator.h"
 #include "morse.h"
 
-enum {_ditsp, _dahsp, _elesp, _ltrsp, _wrdsp};
+
 
 class sendElements : public QObject
 {
@@ -28,6 +24,7 @@ private:
     unsigned char elementCount;
     unsigned char letterCode;
   };
+  enum {_ditsp, _dahsp, _elesp, _ltrsp, _wrdsp};
   // Private Functions
     charFrame ascii2cw(char letter);
     void sendCW(int el_type, unsigned long elTime);

@@ -6,7 +6,7 @@
 
 const int DurationSeconds = 1;
 const int DataFrequencyHz = 44100;
-const int BufferSize      = 32768;
+//const int BufferSize      = 32768;
 const int ToneFrequencyHz = 600;
 
 class Generator : public QIODevice

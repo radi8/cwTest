@@ -21,9 +21,6 @@ cwTest::cwTest(QWidget *parent) :
 
 cwTest::~cwTest()
 {
-//  QSettings settings("ZL2APV", "QtRadio");
-
-//  morse->writeSettings(&settings);
   delete ui;
 }
 

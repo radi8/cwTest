@@ -39,6 +39,7 @@ Morse::Morse(QWidget *parent) :
   ui->setupUi(this);
   cwMode = false;
   toneFreq = 600;
+  xferBufSize = 32768; //Make it big enough for QAudioOutput.PeriodSize + \0
 //  wpm = ui->spinBox_wpm->value();
   QThread *cwThread = new QThread;
 
@@ -66,8 +67,7 @@ Morse::~Morse()
 
 void Morse::initializeAudio()
 {
-  m_buffer.resize(BufferSize);
-  connect(m_pullTimer, SIGNAL(timeout()), SLOT(pullTimerExpired()));
+  xferBuf.resize(xferBufSize);
 
   m_format.setSampleRate(DataFrequencyHz);
   m_format.setChannelCount(1);
@@ -85,8 +85,10 @@ void Morse::initializeAudio()
 
     m_audioOutput = new QAudioOutput(m_device.defaultOutputDevice(), m_format, this);
     m_audioOutput->setVolume(0.75);
+    m_audioOutput->setNotifyInterval(1);
 
-//    connect(m_audioOutput, SIGNAL(notify()), SLOT(notified())); //todo See if I need this
+    connect(m_pullTimer, SIGNAL(timeout()), SLOT(pullTimerExpired()));
+//    connect(m_audioOutput, SIGNAL(notify()), SLOT(pullTimerExpired())); //todo See if I need this
 //    I may need this if I want to use the QAudioOutput instead of a Qtimer for pull mode operation
 
 //    connect(m_audioOutput, SIGNAL(stateChanged(QAudio::State)), SLOT(stateChanged(QAudio::State)));
@@ -167,8 +169,8 @@ int Morse::sendBuffer(int editBox)
   QString buff;
   unsigned long elTime;//  if (!m_generator->keyState) {
   ////      m_audioOutput->setVolume(0);
-  //      m_buffer.fill(0);
-  //      qDebug()<<"m_buffer filled with 0";
+  //      xferBuf.fill(0);
+  //      qDebug()<<"xferBuf filled with 0";
   //    }
 
   elTime = 1200000/wpm;// time in nanoseconds todo temp value for cwTime remove when setup
@@ -204,24 +206,28 @@ int Morse::sendBuffer(int editBox)
 
 void Morse::pullTimerExpired()
 {
+//    qDebug()<<"Arrived at pullTimerExpired slot"
+//            <<", m_pulltimer->interval = "<<m_pullTimer->interval();
+
   if (m_audioOutput && m_audioOutput->state() != QAudio::StoppedState) {
           int chunks = m_audioOutput->bytesFree()/m_audioOutput->periodSize();
           while (chunks) {
-             const qint64 len = m_generator->read(m_buffer.data(), m_audioOutput->periodSize());
+              //xferBuf.data() returns char pointer to start of buffer
+             const qint64 len = m_generator->read(xferBuf.data(), m_audioOutput->periodSize());
              if (!keyState) {
-                 m_buffer.fill(0);
-//                 qDebug()<<"m_buffer filled with 0's"
+                 xferBuf.fill(0);
+//                 qDebug()<<"xferBuf filled with 0's"
 //                        <<", bufferSize = "<<m_audioOutput->bufferSize();
                }
              if (len)
-                 m_output->write(m_buffer.data(), len);
+                 m_output->write(xferBuf.data(), len);
 //             qDebug()<<"Data pointer posn = "<< m_output->pos();
              if (len != m_audioOutput->periodSize())
                  break;
              --chunks;
 //             qDebug()<<"m_audioOutput->bytesFree = "<<m_audioOutput->bytesFree()
 //                     <<", m_audioOutput->periodSize = "<<m_audioOutput->periodSize()
-//                     <<", m_pulltimer.interval = "<<m_pullTimer->interval();
+//                     <<", m_pulltimer->interval = "<<m_pullTimer->interval();
           }
       }
 }
