@@ -40,7 +40,7 @@ private slots:
 private:
   Ui::Morse *ui;
 
-  bool keyState;
+  int keyState;
   QTimer*          m_pullTimer;
   QAudioDeviceInfo m_device;
   Generator*       m_generator;

@@ -153,13 +153,13 @@ void Morse::keyPressEvent(QKeyEvent *event)
 
 void Morse::cwToneOn()
 {
-  keyState = true;
+  keyState = 1;
   m_audioOutput->setVolume(.5);
 }
 
 void Morse::cwToneOff()
 {
-    keyState = false;
+    keyState = 0;
 //    m_audioOutput->setVolume(0);
 //    qDebug()<<"Size of buffer = "<< m_audioOutput->bufferSize();
 }
@@ -204,30 +204,37 @@ int Morse::sendBuffer(int editBox)
   }
 }
 
+/* pullTimerExpired() is a slot accessed every few milliseconds by a QTimer firing. At each
+ * call it checks the audioOutput to see if there is enough space in its internal buffer to
+ * transfer another multiple of m_audioOutput->periodSize() bytes from xferBuf.
+*/
+
 void Morse::pullTimerExpired()
 {
-//    qDebug()<<"Arrived at pullTimerExpired slot"
-//            <<", m_pulltimer->interval = "<<m_pullTimer->interval();
-
+  // Omly do this if m_audioOutput is running
   if (m_audioOutput && m_audioOutput->state() != QAudio::StoppedState) {
+          // Calculate how many periodSize chunks of data will fit into audioOutput
           int chunks = m_audioOutput->bytesFree()/m_audioOutput->periodSize();
           while (chunks) {
-              //xferBuf.data() returns char pointer to start of buffer
+             // Here we call m_generator to load "periodSize" bytes of tone into xferBuf
+             // xferBuf.data() returns char pointer to start of the transfer buffer.
              const qint64 len = m_generator->read(xferBuf.data(), m_audioOutput->periodSize());
+
+             // Here we check to see if tone is steady, rising, falling or off
              if (!keyState) {
+//                 for (int x = 0; x = 440; x++) {
+
+//                 }
+
                  xferBuf.fill(0);
 //                 qDebug()<<"xferBuf filled with 0's"
-//                        <<", bufferSize = "<<m_audioOutput->bufferSize();
+//                         <<", bufferSize = "<<m_audioOutput->bufferSize();
                }
              if (len)
                  m_output->write(xferBuf.data(), len);
-//             qDebug()<<"Data pointer posn = "<< m_output->pos();
              if (len != m_audioOutput->periodSize())
                  break;
              --chunks;
-//             qDebug()<<"m_audioOutput->bytesFree = "<<m_audioOutput->bytesFree()
-//                     <<", m_audioOutput->periodSize = "<<m_audioOutput->periodSize()
-//                     <<", m_pulltimer->interval = "<<m_pullTimer->interval();
           }
       }
 }
