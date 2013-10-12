@@ -41,6 +41,7 @@ private:
   Ui::Morse *ui;
 
   int keyState;
+  int durationMsec;
   QTimer*          m_pullTimer;
   QAudioDeviceInfo m_device;
   Generator*       m_generator;

@@ -39,6 +39,7 @@ Morse::Morse(QWidget *parent) :
   ui->setupUi(this);
   cwMode = false;
   toneFreq = 600;
+  durationMsec = 5;
   xferBufSize = 32768; //Make it big enough for QAudioOutput.PeriodSize + \0
 //  wpm = ui->spinBox_wpm->value();
   QThread *cwThread = new QThread;
@@ -81,7 +82,7 @@ void Morse::initializeAudio()
         qWarning() << "Default format not supported - trying to use nearest";
         m_format = info.nearestFormat(m_format);
     }
-    m_generator = new Generator(m_format, DurationSeconds*1000000, toneFreq, this); //DurationSeconds*1000000, ToneFrequencyHz
+    m_generator = new Generator(m_format, durationMsec, toneFreq, this);
 
     m_audioOutput = new QAudioOutput(m_device.defaultOutputDevice(), m_format, this);
     m_audioOutput->setVolume(0.75);
@@ -99,7 +100,7 @@ void Morse::initializeAudio()
     qDebug()<<"m_audioOutput->BufferSize = "<<m_audioOutput->bufferSize()
             <<", m_audioOutput->notifyInterval = "<<m_audioOutput->notifyInterval()
             <<", m_audioOutput->periodSize = "<<m_audioOutput->periodSize();
-    m_pullTimer->start(1);
+    m_pullTimer->start(5);
     m_generator->setToneFreq(1000);
 }
 
@@ -153,7 +154,7 @@ void Morse::keyPressEvent(QKeyEvent *event)
 
 void Morse::cwToneOn()
 {
-  keyState = 1;
+  keyState = 2;
   m_audioOutput->setVolume(.5);
 }
 
@@ -221,15 +222,35 @@ void Morse::pullTimerExpired()
              const qint64 len = m_generator->read(xferBuf.data(), m_audioOutput->periodSize());
 
              // Here we check to see if tone is steady, rising, falling or off
-             if (!keyState) {
-//                 for (int x = 0; x = 440; x++) {
-
-//                 }
-
+             switch (keyState) {
+               case 0: // Send silence
                  xferBuf.fill(0);
+                 break;
+               case 1: //Send continuous tone
+                 // We do nothing to the tone in this case
+                 break;
+               case 2: //Send rising tone
+               {
+                 char *t = xferBuf.data();
+//                 qDebug()<<"t, xferBuf.data() = "<<t<<", "<<xferBuf.data();
+                 keyState = 1;
+                 break;
+                 for (int x =0; x = 440; x++) {
+                     *t++ = *t * x / 440;
+                   //  *t++;
+                 }
+                 keyState = 1;
+               }
+                 break;
+               case 3: //Send falling to silence
+
+               break;
+               default:
+                 xferBuf.fill(0);
+               }
 //                 qDebug()<<"xferBuf filled with 0's"
 //                         <<", bufferSize = "<<m_audioOutput->bufferSize();
-               }
+
              if (len)
                  m_output->write(xferBuf.data(), len);
              if (len != m_audioOutput->periodSize())

@@ -7,16 +7,13 @@
 
 
 Generator::Generator(const QAudioFormat &format,
-//                     qint64 durationUs,
-                     int cyclesOfTone,
+                     qint64 durationMs,
                      int frequency,
                      QObject *parent)
     :   QIODevice(parent)
     ,   m_pos(0)
 {
-    cyclesOfTone = 3;
-//    generateData(format, durationUs, frequency);
-    generateData(format, cyclesOfTone, frequency);
+    generateData(format, durationMs, frequency);
 }
 
 Generator::~Generator()
@@ -34,8 +31,59 @@ void Generator::stop()
     m_pos = 0;
     close();
 }
+void Generator::generateData(const QAudioFormat &format, qint64 durationMs, int frequency)
+//void Generator::generateData(const QAudioFormat &format, qint64 durationMs, int sampleRate)
+{
+    const int channelBytes = format.sampleSize() / 8;
+    const int sampleBytes = format.channelCount() * channelBytes;
 
-void Generator::generateData(const QAudioFormat &format, int cyclesOfTone, int frequency)
+    qint64 length = (format.sampleRate() * format.channelCount() * (format.sampleSize() / 8))
+                        * durationMs / 1000;
+    if (length & 0x00000001) length += 1;// Force length to be divisible by 2
+
+    qDebug()<<"format.sampleRate = "<<format.sampleRate();
+    qDebug()<<"format. channelCount = "<<format.channelCount();
+    qDebug()<<"format.sampleSize = "<<format.sampleSize();
+    qDebug()<<"Length = "<< length<<", DurationMs = "<<durationMs;
+
+
+    Q_ASSERT(length % sampleBytes == 0);
+    Q_UNUSED(sampleBytes) // suppress warning in release builds
+
+    m_buffer.resize(length);
+    unsigned char *ptr = reinterpret_cast<unsigned char *>(m_buffer.data());
+    int sampleIndex = 0;
+    while (length) {
+        const qreal x = qSin(2 * M_PI * frequency * qreal(sampleIndex % format.sampleRate()) / format.sampleRate());
+        for (int i=0; i<format.channelCount(); ++i) {
+            if (format.sampleSize() == 8 && format.sampleType() == QAudioFormat::UnSignedInt) {
+                const quint8 value = static_cast<quint8>((1.0 + x) / 2 * 255);
+                *reinterpret_cast<quint8*>(ptr) = value;
+            } else if (format.sampleSize() == 8 && format.sampleType() == QAudioFormat::SignedInt) {
+                const qint8 value = static_cast<qint8>(x * 127);
+                *reinterpret_cast<quint8*>(ptr) = value;
+            } else if (format.sampleSize() == 16 && format.sampleType() == QAudioFormat::UnSignedInt) {
+                quint16 value = static_cast<quint16>((1.0 + x) / 2 * 65535);
+                if (format.byteOrder() == QAudioFormat::LittleEndian)
+                    qToLittleEndian<quint16>(value, ptr);
+                else
+                    qToBigEndian<quint16>(value, ptr);
+            } else if (format.sampleSize() == 16 && format.sampleType() == QAudioFormat::SignedInt) {
+                qint16 value = static_cast<qint16>(x * 32767);
+                if (format.byteOrder() == QAudioFormat::LittleEndian)
+                    qToLittleEndian<qint16>(value, ptr);
+                else
+                    qToBigEndian<qint16>(value, ptr);
+//                qDebug()<<"value = "<< value;
+            }
+
+            ptr += channelBytes;
+            length -= channelBytes;
+        }
+        ++sampleIndex;
+    }
+}
+void Generator::generateData1(const QAudioFormat &format, int cyclesOfTone, int frequency)
 {
     //Find out how many bytes in each sample
     const int channelBytes = format.sampleSize() / 8; //SampleSize = bits per sample
@@ -101,7 +149,7 @@ void Generator::generateData(const QAudioFormat &format, int cyclesOfTone, int f
     qDebug()<<"Position = "<<reinterpret_cast<unsigned char *>(m_buffer.data()) - ptr;
 }
 
-void Generator::generateData1(const QAudioFormat &format, int cyclesOfTone, int frequency)
+void Generator::generateData2(const QAudioFormat &format, int cyclesOfTone, int frequency)
 {
     const int channelBytes = format.sampleSize() / 8;
     const int sampleBytes = format.channelCount() * channelBytes;
