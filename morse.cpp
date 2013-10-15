@@ -30,6 +30,7 @@
 #include <QThread>
 #include <QSound>
 #include <math.h>
+#include <qendian.h>
 
 Morse::Morse(QWidget *parent) :
   QDialog(parent),
@@ -230,17 +231,14 @@ void Morse::pullTimerExpired()
                  // We do nothing to the tone in this case
                  break;
                case 2: //Send rising tone
-               {
-                 char *t = xferBuf.data();
-//                 qDebug()<<"t, xferBuf.data() = "<<t<<", "<<xferBuf.data();
-                 keyState = 1;
-                 break;
-                 for (int x =0; x = 440; x++) {
-                     *t++ = *t * x / 440;
-                   //  *t++;
+                 int t;
+                 for (int x = 0; x < 10; x++) {
+                 //    xferBuf[x] = xferBuf[x] / 440;
+                     t = qFromLittleEndian(xferBuf[x]);
+                 //    t = (t<<8)||xferBuf[x+1];
+                     qDebug()<<"xferBuf["<<x<<"] = "<<int(xferBuf[x])<<", "<<t;
                  }
                  keyState = 1;
-               }
                  break;
                case 3: //Send falling to silence
 
