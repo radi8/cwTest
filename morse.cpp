@@ -52,6 +52,7 @@ Morse::Morse(QWidget *parent) :
   m_pullTimer = new QTimer(this);
   initializeAudio();
   cwToneOff();
+  keyState = 0;
 
   connect(sendEl, SIGNAL(cwToneOn()),this, SLOT(cwToneOn()));
   connect(sendEl, SIGNAL(cwToneOff()),this, SLOT(cwToneOff()));
@@ -101,7 +102,7 @@ void Morse::initializeAudio()
     qDebug()<<"m_audioOutput->BufferSize = "<<m_audioOutput->bufferSize()
             <<", m_audioOutput->notifyInterval = "<<m_audioOutput->notifyInterval()
             <<", m_audioOutput->periodSize = "<<m_audioOutput->periodSize();
-    m_pullTimer->start(5);
+    m_pullTimer->start(1);
     m_generator->setToneFreq(1000);
 }
 
@@ -161,7 +162,7 @@ void Morse::cwToneOn()
 
 void Morse::cwToneOff()
 {
-    keyState = 0;
+    keyState = 3;
 //    m_audioOutput->setVolume(0);
 //    qDebug()<<"Size of buffer = "<< m_audioOutput->bufferSize();
 }
@@ -220,7 +221,7 @@ void Morse::pullTimerExpired()
           while (chunks) {
              // Here we call m_generator to load "periodSize" bytes of tone into xferBuf
              // xferBuf.data() returns char pointer to start of the transfer buffer.
-             const qint64 len = m_generator->read(xferBuf.data(), m_audioOutput->periodSize());
+                 const qint64 len = m_generator->read(xferBuf.data(), m_audioOutput->periodSize());
 
              // Here we check to see if tone is steady, rising, falling or off
              switch (keyState) {
@@ -231,24 +232,36 @@ void Morse::pullTimerExpired()
                  // We do nothing to the tone in this case
                  break;
                case 2: //Send rising tone
-                 int t;
-                 for (int x = 0; x < 10; x++) {
-                 //    xferBuf[x] = xferBuf[x] / 440;
-                     t = qFromLittleEndian(xferBuf[x]);
-                 //    t = (t<<8)||xferBuf[x+1];
-                     qDebug()<<"xferBuf["<<x<<"] = "<<int(xferBuf[x])<<", "<<t;
+                 short int value;
+                 for (int x = 0; x < 440; x+=2) {
+                     value = (int(xferBuf[x+1])<<8)&0xFF00;
+                     value = (value | (int(xferBuf[x])&0x00FF))*x/442;
+//                     qDebug()<<"final value = "<<value<<value*x/442;
+                     xferBuf[x]=value&0x00FF;
+                     xferBuf[x+1]=(value>>8)&0x00FF;
+//                     qDebug()<<"final value of m_buf["<<x<<" = "<<value;
                  }
                  keyState = 1;
                  break;
                case 3: //Send falling to silence
-
+                 for (int x = 0; x < 440; x+=2) {
+                     value = (int(xferBuf[440-x+1])<<8)&0xFF00;
+                     value = (value | (int(xferBuf[440-x])&0x00FF))*x/442;
+//                     qDebug()<<"final value = "<<value<<value*x/442;
+                     xferBuf[440-x]=value&0x00FF;
+                     xferBuf[440-x+1]=(value>>8)&0x00FF;
+//                     qDebug()<<"final value of m_buf["<<x<<" = "<<value;
+                 }
+                 for (int x = 442; x<= xferBufSize; x++) xferBuf[x] = 0;
+                 for (int x =0; x<20; x+=2) {
+                     qDebug()<<"The value xferBuf["<<x<<"] = "<<QString::number(xferBuf[x+1], 16)<<QString::number(xferBuf[x], 16);
+                   }
+                 keyState = 0;
                break;
+
                default:
                  xferBuf.fill(0);
                }
-//                 qDebug()<<"xferBuf filled with 0's"
-//                         <<", bufferSize = "<<m_audioOutput->bufferSize();
-
              if (len)
                  m_output->write(xferBuf.data(), len);
              if (len != m_audioOutput->periodSize())
