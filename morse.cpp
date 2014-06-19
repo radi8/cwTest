@@ -171,7 +171,7 @@ int Morse::sendBuffer(int editBox)
 {
   QString buff;
   unsigned long elTime;//  if (!m_generator->keyState) {
-  ////      m_audioOutput->setVolume(0);
+  //      m_audioOutput->setVolume(0);
   //      xferBuf.fill(0);
   //      qDebug()<<"xferBuf filled with 0";
   //    }
