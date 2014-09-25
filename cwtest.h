@@ -28,6 +28,7 @@ private slots:
     void on_actionCwModule_triggered();
     void on_spinBox_wpm_valueChanged(int arg1);
     void on_spinBox_freq_valueChanged(int arg1);
+    void on_pushButton_2_clicked();
 };
 
 #endif // CWTEST_H

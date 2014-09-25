@@ -53,6 +53,7 @@ Morse::Morse(QWidget *parent) :
   initializeAudio();
   cwToneOff();
   keyState = 0;
+  connect(ui->btnClose,SIGNAL(clicked()),this,SLOT(close()));
 
   connect(sendEl, SIGNAL(cwToneOn()),this, SLOT(cwToneOn()));
   connect(sendEl, SIGNAL(cwToneOff()),this, SLOT(cwToneOff()));

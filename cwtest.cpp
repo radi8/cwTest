@@ -17,6 +17,7 @@ cwTest::cwTest(QWidget *parent) :
   morse = new Morse(this); //CW settings has UI as parent so it closes with UI close
   morse->wpm = ui->spinBox_wpm->value();
   qDebug() << __FUNCTION__ << "the value of wpm is " << morse->wpm;
+  connect(ui->btnQuit,SIGNAL(clicked()),this,SLOT(close()));
 }
 
 cwTest::~cwTest()
@@ -65,4 +66,9 @@ void cwTest::on_spinBox_freq_valueChanged(int arg1)
 {
     morse->toneFreq = arg1;
     qDebug() << __FUNCTION__ << "the value of toneFreq after spin box change is " << morse->toneFreq;
+}
+
+void cwTest::on_pushButton_2_clicked()
+{
+
 }
