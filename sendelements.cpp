@@ -26,6 +26,7 @@
 #include <QThread>
 //#include <QSound>
 //#include <math.h>
+#include <unistd.h> //included for usleep
 
 #include "sendelements.h"
 
